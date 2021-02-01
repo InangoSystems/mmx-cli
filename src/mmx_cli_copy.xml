@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CLISH_MODULE xmlns ="http://clish.sourceforge.net/XMLSchema"
+          xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation = "http://clish.sourceforge.net/XMLSchema
+                        http://clish.sourceforge.net/XMLSchema/clish.xsd">
+
+<VIEW name="root-view">
+<!--=======================================================-->
+    <COMMAND name="copy"
+            help="General copy operation - copies files from source to destination URI.">
+
+    <PARAM name="Source" help="The source URI. Avaliable values for source URI:
+
+                tftp://ip-addr-or-hostname/&lt;filename&gt;
+                ftp://ip-addr-or-hostname/&lt;filename&gt;
+
+            "
+            ptype="STRING"/>
+
+    <PARAM name="Destination"  help="The destination URI. Avaliable values for destination URI:
+
+                local://&lt;fileType&gt;/[option]
+
+  --------------------------------------------------------------------------------------------------------
+  |  Type                   |  Source                                 |  Destination                                      |
+  --------------------------------------------------------------------------------------------------------
+  |  CPU SW image loading:  |  tftp://&lt;paddr&gt;/&lt;filename&gt;  |  local://cpu_sw                                   |
+  |                         |  ftp://&lt;paddr&gt;/filename&gt;       |  local://cpu_sw                                   |
+  |  G.Fast FW loading:     |  tftp://&lt;paddr/&lt;filename&gt;      |  local://gfast_dfe_fw                             |
+  |                         |  ftp://&lt;paddr&gt;/&lt;filename&gt;   |  local://gfast_dfe_fw                             |
+  |  CPE FW loading:        |  tftp://&lt;paddr&gt;/&lt;filename&gt;  |  local://gfast_cpe_fw/&lt;G.Fast line number&gt;  |
+  |                         |  ftp://&lt;ipaddr&gt;/&lt;filename&gt;  |  local://gfast_cpe_fw/&lt;G.Fast line number&gt;  |
+  --------------------------------------------------------------------------------------------------------"
+
+     ptype="STRING"/>
+
+        <ACTION>
+
+            suri=${Source}
+            duri=${Destination}
+
+            trap "echo ; echo Copy operation canceled.; /usr/lib/lua/mmx/mmx_cli_copy.lua cancel; exit 0" SIGINT SIGTERM
+
+            startResult=$(/usr/lib/lua/mmx/mmx_cli_copy.lua $suri $duri)
+            if [ "$startResult" != 'Invalid URI.' ]; then
+                if [ $startResult == 0 ]; then
+                    echo "Copy operation successfully started"
+                else
+                    echo "Copy operation not started with error: $startResult"
+                fi
+                while true; do
+                    status=$(/usr/lib/lua/mmx/mmx_cli_copy.lua status)
+                    if [ "$status" != 'Requested' ]; then
+                        echo
+                        if [ "$status" == 'Complete' ]; then
+                            echo "Copy operation successfully completed"
+                            break
+                        fi
+                        echo -n "Copy operation failed: "
+                        echo $status
+                        break
+                    fi
+                    sleep 1
+                    echo -n .
+                done;
+            else
+                echo "Invalid URI. Type copy? for help"
+            fi
+
+        </ACTION>
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+</CLISH_MODULE>

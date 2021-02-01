@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CLISH_MODULE xmlns ="http://clish.sourceforge.net/XMLSchema" 
+          xmlns:xsi = "http://www.w3.org/2001/XMLSchema-instance" 
+ xsi:schemaLocation = "http://clish.sourceforge.net/XMLSchema
+                        http://clish.sourceforge.net/XMLSchema/clish.xsd">
+
+<VIEW name="mmx-debug-gfast" prompt="debug/gfast&gt; ">
+<!--=======================================================-->
+    <COMMAND name="quit"  help="Quit this CLI session">
+       <ACTION builtin="clish_close"/>
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="top" help="Go back to the main CLI level" 
+        view="root-view"> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="up"  help="Go back to the previous CLI menu level"
+             view="mmx-debug">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="dfeethmode"  
+             help="DFE Ethernet mode allows to the network processor to 
+            communicate to G.Fast DFE chips and burn new FW if there is 
+            no FW on the DFE or if the FW is corrupted.
+            This mode is needed when DFE is in B0 state (ROM level) and can communicate to 
+            the Network Processor using 1G Ethernet and not G.999.1 interface"
+             view="mmx-debug-gfast-dfeethmode">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="g9991speed"  
+             help="Enter to G.999.1 interface speed menu level.
+            Speed of G999.1 interface between the network processor and the 
+            G.fast DFE chips on the board.
+            Possible values are 1Gbps (1000M) or 2.5Gbps (2500M). 
+            After the speed change device reboot is needed.
+            (The g999.1 speed value should be the same as in the DFE's FW)"
+             view="mmx-debug-gfast-g9991speed">
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+
+<VIEW name="mmx-debug-gfast-dfeethmode" prompt="debug/gfast/dfeethmode&gt; ">
+<!--=======================================================-->
+    <COMMAND name="quit"  help="Quit this CLI session">
+       <ACTION builtin="clish_close"/>
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="top" help="Go back to the main CLI level" 
+        view="root-view"> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="up"  help="Go back to the previous CLI menu level"
+             view="mmx-debug-gfast">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="ethmode_on" help="Turn on the DFE Ethernet mode. The command requires root permissions.">
+        <ACTION>
+            tmplog="/tmp/dfeethmodechange.log"
+            tmpmode=`/bin/wp-dfe-eth-mode-switch status`
+            if [ "$tmpmode" = "dfe-enet" ] ; then
+                echo "DFE Ethernet mode is already ON. Command is ignored.($tmpmode)"
+                exit
+            fi
+            
+            /bin/wp-dfe-eth-mode-switch on &#38;> $tmplog
+            tmpmode=`/bin/wp-dfe-eth-mode-switch status`
+            if [ $tmpmode = "dfe-enet" ] ; then
+                echo "Done. DFE Ethernet mode is turned on ($tmpmode)"
+            else
+                echo "Failed. (See log file $tmplog ($tmpmode))"
+            fi
+            
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="ethmode_off" help="Turn off the DFE Ethernet mode. The command requires root permissions.">
+        <ACTION>
+            tmplog="/tmp/dfeethmodechange.log"
+            
+            tmpmode=`/bin/wp-dfe-eth-mode-switch status`
+            if [ "$tmpmode" = "dfe-g999" ] ; then
+                echo "DFE Ethernet mode is already OFF. Command is ignored. ($tmpmode)"
+                exit
+            fi
+            /bin/wp-dfe-eth-mode-switch off &#38;> $tmplog
+            tmpmode=`/bin/wp-dfe-eth-mode-switch status`
+            if [ $tmpmode = "dfe-g999" ] ; then
+                echo "Done. DFE Ethernet mode is turned off ($tmpmode)"
+            else
+                echo "Failed. (See log file $tmplog ($tmpmode))"
+            fi
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="ethmode_status" help="Show if the DFE Ethernet mode is on or off">
+        <ACTION>
+            tmpmode=`/bin/wp-dfe-eth-mode-switch status`
+            if [ $tmpmode != "${tmpmode/dfe-enet/}" ] ; then
+                echo "DFE ethernet mode is OFF ($tmpmode)"
+            else
+                echo "DFE ethernet mode is ON ($tmpmode)"
+            fi
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+
+<VIEW name="mmx-debug-gfast-g9991speed" prompt="debug/gfast/g9991speed&gt; ">
+<!--=======================================================-->
+    <COMMAND name="quit"  help="Quit this CLI session">
+       <ACTION builtin="clish_close"/>
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="top" help="Go back to the main CLI level" 
+        view="root-view"> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="up"  help="Go back to the previous CLI menu level"
+             view="mmx-debug-gfast">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="setspeed1000" help="Change g999.1 interface speed to 1G. Number of g999.1 ports 
+              will be automatically set to 4. The command requires root permissions.">
+        <ACTION>
+            cat /etc/g999_app.conf | \
+            sed '/g999_port_speed/ c \    g999_port_speed: 1000    # Allowed values: 1000 or 2500' | \
+            sed '/g999_ports_number/ c \     g999_ports_number:	4    # Only 1,2,4 are allowed. For current board must be 2 if Speed is 2500' \
+            > /tmp/g999_app_copy.conf
+
+            cp /tmp/g999_app_copy.conf /etc/g999_app.conf
+            rm /tmp/g999_app_copy.conf
+            
+            echo "Done"
+            echo "G.999.1 interface speed is set to 1G, number of g.999.1 ports is set to 4"
+            echo "Reboot is needed" 
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="setspeed2500" help="Change g999.1 interface speed to 2.5G. Number of g999.1 ports 
+              will be automatically set to 2. The command requires root permissions.">
+        <ACTION>
+            cat /etc/g999_app.conf | \
+            sed '/g999_port_speed/ c \    g999_port_speed: 2500    # Allowed values: 1000 or 2500' | \
+            sed '/g999_ports_number/ c \     g999_ports_number:	2    # Only 1,2,4 are allowed. For current board must be 2 if Speed is 2500' \
+            > /tmp/g999_app_copy.conf
+
+            cp /tmp/g999_app_copy.conf /etc/g999_app.conf
+            rm /tmp/g999_app_copy.conf
+            
+            echo "Done"
+            echo "G.999.1 interface speed is set to 2.5G, number of g.999.1 ports is set to 2"
+            echo "Reboot is needed"
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="showspeed" help="Show speed of g.999.1 interface">
+        <ACTION>
+            speed=`grep g999_port_speed /etc/g999_app.conf | cut -f 2 -d: | sed 's/^[\t\n ]*\([0-9]*\) .*$/\1/'`
+            numofports=`grep g999_ports_number /etc/g999_app.conf | cut -f 2 -d: | sed 's/^[\t\n ]*\([0-9]*\) .*$/\1/'`
+            
+            if [ "$speed" = "1000" ] ; then 
+                speed="1G"
+            else 
+                 speed="2.5G"
+            fi
+            
+            echo  "Speed of G.999.1 interface is $speed"
+            echo  "Number of G.999.1 ports is $numofports"
+             
+        </ACTION> 
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+
+
+<VIEW name="mmx-debug">
+<!--=======================================================-->
+    <COMMAND name="gfast"
+             help = "Enter G.Fast debug/production level (root permissions are required)"
+             view="mmx-debug-gfast">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="gfast dfeethmode"
+             help = "Enter the G.Fast debug DFE Ethernet mode level"
+             view="mmx-debug-gfast-dfeethmode">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="gfast g9991speed"
+             help = "Enter the G.Fast debug G.999.1 speed level"
+             view="mmx-debug-gfast-g9991speed">
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+
+<VIEW name="root-view">
+<!--=======================================================-->
+    <COMMAND name="debug gfast"
+             help = "Enter G.Fast debug/production level (root permissions are required)"
+             view="mmx-debug-gfast">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="debug gfast dfeethmode"
+             help = "Enter the G.Fast debug DFE Ethernet mode level"
+             view="mmx-debug-gfast-dfeethmode">
+    </COMMAND>
+<!--=======================================================-->
+    <COMMAND name="debug gfast g9991speed"
+             help = "Enter the G.Fast debug g.999.2 speed level"
+             view="mmx-debug-gfast-g9991speed">
+    </COMMAND>
+<!--=======================================================-->
+</VIEW>
+
+</CLISH_MODULE>
